@@ -1,8 +1,9 @@
-#include "resource.h"
-#include <windows.h>
+ï»¿#include <windows.h>
 #include <commctrl.h>
 #include <shlwapi.h>
 #include <string>
+#include "resource.h"
+
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "shlwapi.lib")
 
@@ -114,6 +115,17 @@ LRESULT CALLBACK SliderWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
             ResetSliders();
         }
         break;
+    case WM_HOTKEY:
+        switch (wParam) {
+        case 1: LoadSettings(1); UpdateUIControls(); break; // Alt + 1
+        case 2: LoadSettings(2); UpdateUIControls(); break; // Alt + 2
+        case 3: LoadSettings(3); UpdateUIControls(); break; // Alt + 3
+        case 4: LoadSettings(1); UpdateUIControls(); break; // F1
+        case 5: LoadSettings(2); UpdateUIControls(); break; // F2
+        case 6: LoadSettings(3); UpdateUIControls(); break; // F3
+        case 7: PostQuitMessage(0); break; // END key
+        }
+        break;
     case WM_HSCROLL:
         if ((HWND)lParam == GetDlgItem(hwnd, 1)) {
             alphaValue = SendMessage((HWND)lParam, TBM_GETPOS, 0, 0);
@@ -134,6 +146,9 @@ LRESULT CALLBACK SliderWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
         SaveCurrentSettings();
         break;
     case WM_DESTROY:
+        for (int i = 1; i <= 7; i++) {
+            UnregisterHotKey(nullptr, i);
+        }
         PostQuitMessage(0);
         break;
     }
@@ -174,13 +189,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
         overlayClass, L"", WS_POPUP, 0, 0, screenWidth, screenHeight,
         nullptr, nullptr, hInstance, nullptr);
 
-    LoadSettings(1);
-    UpdateOverlayAlpha();
-    UpdateOverlayColor();
-    UpdateContrastAlpha();
-    ShowWindow(contrastWindow, SW_SHOW);
-    ShowWindow(overlayWindow, SW_SHOW);
-
     const wchar_t* sliderClass = L"SliderWindow";
     WNDCLASS wcSlider = {};
     wcSlider.lpfnWndProc = SliderWndProc;
@@ -190,7 +198,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     wcSlider.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));
     RegisterClass(&wcSlider);
 
-    sliderWindow = CreateWindowEx(0, sliderClass, L"ButaOverlay",
+    sliderWindow = CreateWindowEx(0, sliderClass, L"ButachanFilter v1.1",
         WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX,
         100, 100, 320, 300, nullptr, nullptr, hInstance, nullptr);
 
@@ -202,11 +210,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
         SendMessage(slotButtons[i], WM_SETFONT, (WPARAM)hSmallFont, TRUE);
     }
 
-    resetButton = CreateWindow(L"BUTTON", L"ƒŠƒZƒbƒg",
+    resetButton = CreateWindow(L"BUTTON", L"ãƒªã‚»ãƒƒãƒˆ",
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
         170, 10, 60, 25,
         sliderWindow, (HMENU)2000, hInstance, nullptr);
     SendMessage(resetButton, WM_SETFONT, (WPARAM)hSmallFont, TRUE);
+
+    RegisterHotKey(sliderWindow, 1, MOD_ALT, 0x31); // Alt + 1
+    RegisterHotKey(sliderWindow, 2, MOD_ALT, 0x32); // Alt + 2
+    RegisterHotKey(sliderWindow, 3, MOD_ALT, 0x33); // Alt + 3
+    RegisterHotKey(sliderWindow, 4, 0, VK_F1);
+    RegisterHotKey(sliderWindow, 5, 0, VK_F2);
+    RegisterHotKey(sliderWindow, 6, 0, VK_F3);
+    RegisterHotKey(sliderWindow, 7, 0, VK_END); // END
+
+    LoadSettings(1);
+    UpdateOverlayAlpha();
+    UpdateOverlayColor();
+    UpdateContrastAlpha();
+    ShowWindow(contrastWindow, SW_SHOW);
+    ShowWindow(overlayWindow, SW_SHOW);
+    ShowWindow(sliderWindow, SW_SHOW);
 
     int y = 40;
     auto createLabel = [&](LPCWSTR text, int y) {
@@ -225,21 +249,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
         SendMessage(h, TBM_SETPOS, TRUE, value);
         };
 
-    createLabel(L"–¾‚é‚³", y); createSlider(1, y + 20, 0, 255, alphaValue); y += 50;
-    createLabel(L"ƒKƒ“ƒ}", y); createSlider(2, y + 20, 120, 255, gammaLevel); y += 50;
-    createLabel(L"ƒRƒ“ƒgƒ‰ƒXƒg", y); createSlider(3, y + 20, 0, 255, contrastAlpha); y += 50;
-    createLabel(L"F‰·“x", y); createSlider(4, y + 20, 0, 255, colorTempLevel);
-
-    ShowWindow(sliderWindow, SW_SHOW);
+    createLabel(L"æ˜Žã‚‹ã•", y); createSlider(1, y + 20, 0, 255, alphaValue); y += 50;
+    createLabel(L"ã‚¬ãƒ³ãƒž", y); createSlider(2, y + 20, 120, 255, gammaLevel); y += 50;
+    createLabel(L"ã‚³ãƒ³ãƒˆãƒ©ã‚¹ãƒˆ", y); createSlider(3, y + 20, 0, 255, contrastAlpha); y += 50;
+    createLabel(L"è‰²æ¸©åº¦", y); createSlider(4, y + 20, 0, 255, colorTempLevel);
 
     MSG msg;
     while (GetMessage(&msg, nullptr, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
-
-        if (GetAsyncKeyState(VK_END) & 1) {
-            PostQuitMessage(0);
-        }
     }
 
     return 0;
